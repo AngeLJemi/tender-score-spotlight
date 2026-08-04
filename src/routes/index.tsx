@@ -135,7 +135,7 @@ function TendersPage() {
   const [category, setCategory] = useState<string>("All");
   const [portal, setPortal] = useState<string>("All");
   const [starred, setStarred] = useState<string[]>([]);
-  const [selectedId, setSelectedId] = useState<string>(allTenders[0].tenderId);
+  const [selectedId, setSelectedId] = useState<string>(allTenders[0]?.tenderId ?? "");
 
   const categories = useMemo(
     () => ["All", ...Array.from(new Set(allTenders.map((t) => t.category)))],
