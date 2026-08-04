@@ -19,6 +19,8 @@
  */
 
 @theme inline {
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", ui-sans-serif, system-ui, sans-serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -46,6 +48,18 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-ring-offset-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-strong: var(--surface-strong);
+  --color-tag-category: var(--tag-category);
+  --color-tag-category-foreground: var(--tag-category-foreground);
+  --color-tag-method: var(--tag-method);
+  --color-tag-method-foreground: var(--tag-method-foreground);
+  --color-relevance-high: var(--relevance-high);
+  --color-relevance-medium: var(--relevance-medium);
+  --color-relevance-low: var(--relevance-low);
+  --color-urgent: var(--urgent);
+  --color-open: var(--open);
+  --color-ai: var(--ai);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);
@@ -60,6 +74,7 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 }
+
 
 :root {
   --radius: 0.625rem;
