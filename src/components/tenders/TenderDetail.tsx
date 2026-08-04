@@ -9,7 +9,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { daysToClose, formatDateTime, type Tender } from "@/lib/tenders";
+import { daysToClose, formatDateTime, keywordSentence, type Tender } from "@/lib/tenders";
 import { KeywordChip, RelevanceBadge, Tag } from "./RelevanceBadge";
 
 function Section({
@@ -83,17 +83,25 @@ export function TenderDetail({ tender }: { tender: Tender }) {
 
       <Section title="AI relevance">
         <div className="rounded-xl border border-border bg-surface-strong/60 p-4">
-          <RelevanceBadge relevance={tender.relevance} size="md" />
-          <p className="mt-3 text-sm text-foreground/90">{tender.relevance.reason}</p>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <p className="text-base font-semibold">
+              {keywordSentence(tender.relevance.matchedKeywords) ?? "No keyword matches"}
+            </p>
+            <RelevanceBadge relevance={tender.relevance} />
+          </div>
           {tender.relevance.matchedKeywords.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-1.5">
               {tender.relevance.matchedKeywords.map((k) => (
-                <KeywordChip key={k}>{k}</KeywordChip>
+                <KeywordChip key={k} tone="primary">
+                  {k}
+                </KeywordChip>
               ))}
             </div>
           )}
+          <p className="mt-3 text-sm text-muted-foreground">{tender.relevance.reason}</p>
         </div>
       </Section>
+
 
       <Section title="AI summary">
         <div className="rounded-xl border border-ai/20 bg-ai/6 p-4">

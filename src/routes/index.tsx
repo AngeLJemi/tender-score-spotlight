@@ -5,14 +5,23 @@ import {
   FileText,
   LayoutGrid,
   PanelLeft,
+  Rows3,
   Search,
   Settings,
   Stethoscope,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { daysToClose, tenders as allTenders, type RelevanceLabel } from "@/lib/tenders";
+import {
+  daysToClose,
+  matchesQuickFilter,
+  quickFilters,
+  relevanceStrength,
+  tenders as allTenders,
+  type RelevanceLabel,
+} from "@/lib/tenders";
 import { TenderCard } from "@/components/tenders/TenderCard";
 import { TenderDetail } from "@/components/tenders/TenderDetail";
+import { TopMatches } from "@/components/tenders/TopMatches";
 import {
   Select,
   SelectContent,
@@ -43,6 +52,7 @@ export const Route = createFileRoute("/")({
 
 type StatusFilter = "All" | "Open" | "Closed";
 type SortKey = "recent" | "relevance";
+type ViewMode = "list" | "grid";
 
 const navItems = [
   { label: "Dashboard", icon: LayoutGrid, active: false },
@@ -134,8 +144,13 @@ function TendersPage() {
   const [relevance, setRelevance] = useState<string>("All");
   const [category, setCategory] = useState<string>("All");
   const [portal, setPortal] = useState<string>("All");
+  const [activeChips, setActiveChips] = useState<string[]>([]);
+  const [view, setView] = useState<ViewMode>("list");
   const [starred, setStarred] = useState<string[]>([]);
   const [selectedId, setSelectedId] = useState<string>(allTenders[0]?.tenderId ?? "");
+
+  const toggleStar = (id: string) =>
+    setStarred((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   const categories = useMemo(
     () => ["All", ...Array.from(new Set(allTenders.map((t) => t.category)))],
@@ -155,6 +170,7 @@ function TendersPage() {
       if (relevance !== "All" && t.relevance.label !== (relevance as RelevanceLabel)) return false;
       if (category !== "All" && t.category !== category) return false;
       if (portal !== "All" && !t.sourcePortals.includes(portal)) return false;
+      if (activeChips.length > 0 && !activeChips.some((c) => matchesQuickFilter(t, c))) return false;
       if (!q) return true;
       return [t.title, t.agency, t.tenderId, t.category, ...t.relevance.matchedKeywords]
         .join(" ")
@@ -164,12 +180,29 @@ function TendersPage() {
 
     return [...list].sort((a, b) =>
       sort === "relevance"
-        ? b.relevance.score - a.relevance.score
+        ? relevanceStrength[b.relevance.label].segments -
+            relevanceStrength[a.relevance.label].segments ||
+          new Date(b.publishedDate).getTime() - new Date(a.publishedDate).getTime()
         : new Date(b.publishedDate).getTime() - new Date(a.publishedDate).getTime(),
     );
-  }, [query, status, sort, relevance, category, portal]);
+  }, [query, status, sort, relevance, category, portal, activeChips]);
+
+  const topMatches = useMemo(
+    () =>
+      allTenders
+        .filter((t) => t.status === "OPEN" && daysToClose(t.closingDate) >= 0)
+        .sort(
+          (a, b) =>
+            relevanceStrength[b.relevance.label].segments -
+              relevanceStrength[a.relevance.label].segments ||
+            new Date(a.closingDate).getTime() - new Date(b.closingDate).getTime(),
+        )
+        .slice(0, 3),
+    [],
+  );
 
   const selected = filtered.find((t) => t.tenderId === selectedId) ?? filtered[0];
+
 
   return (
     <div className="flex min-h-screen bg-surface">
@@ -184,29 +217,87 @@ function TendersPage() {
 
         <div className="min-w-0 flex-1 p-5">
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 md:flex md:justify-between">
-            <div className="relative min-w-0 md:w-96">
-              <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
+            <div className="group relative min-w-0 md:w-[26rem]">
+              <Search className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Filter these results..."
-                aria-label="Filter tenders"
-                className="h-11 w-full rounded-full bg-muted pr-4 pl-10 text-sm outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-ring/40"
+                placeholder="Search by keyword, agency, or category..."
+                aria-label="Search tenders"
+                className="h-12 w-full rounded-full border border-border bg-card pr-4 pl-11 text-sm shadow-sm outline-none transition-shadow placeholder:text-muted-foreground focus:border-primary/40 focus:shadow-md focus:ring-4 focus:ring-primary/10"
               />
             </div>
 
-            <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
-              <SelectTrigger
-                className="h-11 w-auto min-w-[13rem] rounded-full border-border bg-card"
-                aria-label="Sort tenders"
+            <div className="flex items-center gap-2">
+              <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
+                <SelectTrigger
+                  className="h-11 w-auto min-w-[13rem] rounded-full border-border bg-card"
+                  aria-label="Sort tenders"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="recent">Recently published</SelectItem>
+                  <SelectItem value="relevance">Highest relevance first</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <div
+                role="tablist"
+                aria-label="View mode"
+                className="inline-flex shrink-0 rounded-full border border-border bg-card p-1"
               >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="recent">Recently published</SelectItem>
-                <SelectItem value="relevance">Highest relevance first</SelectItem>
-              </SelectContent>
-            </Select>
+                {(
+                  [
+                    { key: "list" as ViewMode, icon: Rows3, label: "List view" },
+                    { key: "grid" as ViewMode, icon: LayoutGrid, label: "Grid view" },
+                  ]
+                ).map((v) => (
+                  <button
+                    key={v.key}
+                    type="button"
+                    role="tab"
+                    aria-selected={view === v.key}
+                    aria-label={v.label}
+                    onClick={() => setView(v.key)}
+                    className={cn(
+                      "grid size-9 place-items-center rounded-full transition-colors",
+                      view === v.key
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    <v.icon className="size-4" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {quickFilters.map((f) => {
+              const active = activeChips.includes(f);
+              return (
+                <button
+                  key={f}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() =>
+                    setActiveChips((prev) =>
+                      prev.includes(f) ? prev.filter((x) => x !== f) : [...prev, f],
+                    )
+                  }
+                  className={cn(
+                    "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                    active
+                      ? "border-primary/40 bg-accent text-accent-foreground"
+                      : "border-border bg-card text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {f}
+                </button>
+              );
+            })}
           </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -249,43 +340,56 @@ function TendersPage() {
             <FilterSelect label="Source" value={portal} onChange={setPortal} options={portals} />
           </div>
 
-          <p className="mt-4 text-sm text-muted-foreground">
+          <TopMatches tenders={topMatches} selectedId={selected?.tenderId} onSelect={setSelectedId} />
+
+          <p className="mt-5 text-sm text-muted-foreground">
             Showing {filtered.length} of {allTenders.length} tenders
           </p>
 
           <div className="mt-4 grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_26rem]">
-            <div className="min-w-0 overflow-hidden rounded-2xl border border-border bg-card">
+            <div className="min-w-0">
               {filtered.length === 0 ? (
-                <p className="p-10 text-center text-sm text-muted-foreground">
+                <p className="rounded-2xl border border-border bg-card p-10 text-center text-sm text-muted-foreground">
                   No tenders match these filters.
                 </p>
+              ) : view === "grid" ? (
+                <div className="grid min-w-0 gap-4 sm:grid-cols-2 2xl:grid-cols-3">
+                  {filtered.map((t) => (
+                    <TenderCard
+                      key={t.tenderId}
+                      variant="grid"
+                      tender={t}
+                      selected={selected?.tenderId === t.tenderId}
+                      onSelect={() => setSelectedId(t.tenderId)}
+                      starred={starred.includes(t.tenderId)}
+                      onToggleStar={() => toggleStar(t.tenderId)}
+                    />
+                  ))}
+                </div>
               ) : (
-                filtered.map((t) => (
-                  <TenderCard
-                    key={t.tenderId}
-                    tender={t}
-                    selected={selected?.tenderId === t.tenderId}
-                    onSelect={() => setSelectedId(t.tenderId)}
-                    starred={starred.includes(t.tenderId)}
-                    onToggleStar={() =>
-                      setStarred((prev) =>
-                        prev.includes(t.tenderId)
-                          ? prev.filter((id) => id !== t.tenderId)
-                          : [...prev, t.tenderId],
-                      )
-                    }
-                  />
-                ))
+                <div className="min-w-0 overflow-hidden rounded-2xl border border-border bg-card">
+                  {filtered.map((t) => (
+                    <TenderCard
+                      key={t.tenderId}
+                      tender={t}
+                      selected={selected?.tenderId === t.tenderId}
+                      onSelect={() => setSelectedId(t.tenderId)}
+                      starred={starred.includes(t.tenderId)}
+                      onToggleStar={() => toggleStar(t.tenderId)}
+                    />
+                  ))}
+                </div>
               )}
             </div>
 
             {selected && (
-              <div className="min-w-0 self-start rounded-2xl border border-border bg-card xl:sticky xl:top-5 xl:max-h-[calc(100vh-2.5rem)] xl:overflow-y-auto">
+              <div className="min-w-0 self-start rounded-2xl border border-border bg-card shadow-sm xl:sticky xl:top-5 xl:max-h-[calc(100vh-2.5rem)] xl:overflow-y-auto">
                 <TenderDetail tender={selected} />
               </div>
             )}
           </div>
         </div>
+
       </main>
     </div>
   );
