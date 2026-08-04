@@ -52,6 +52,7 @@ export const Route = createFileRoute("/")({
 
 type StatusFilter = "All" | "Open" | "Closed";
 type SortKey = "recent" | "relevance";
+type ViewMode = "list" | "grid";
 
 const navItems = [
   { label: "Dashboard", icon: LayoutGrid, active: false },

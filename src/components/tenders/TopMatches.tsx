@@ -10,7 +10,7 @@ export function TopMatches({
   onSelect,
 }: {
   tenders: Tender[];
-  selectedId?: string;
+  selectedId?: string | undefined;
   onSelect: (id: string) => void;
 }) {
   if (tenders.length === 0) return null;
