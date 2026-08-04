@@ -5,14 +5,23 @@ import {
   FileText,
   LayoutGrid,
   PanelLeft,
+  Rows3,
   Search,
   Settings,
   Stethoscope,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { daysToClose, tenders as allTenders, type RelevanceLabel } from "@/lib/tenders";
+import {
+  daysToClose,
+  matchesQuickFilter,
+  quickFilters,
+  relevanceStrength,
+  tenders as allTenders,
+  type RelevanceLabel,
+} from "@/lib/tenders";
 import { TenderCard } from "@/components/tenders/TenderCard";
 import { TenderDetail } from "@/components/tenders/TenderDetail";
+import { TopMatches } from "@/components/tenders/TopMatches";
 import {
   Select,
   SelectContent,
@@ -134,8 +143,13 @@ function TendersPage() {
   const [relevance, setRelevance] = useState<string>("All");
   const [category, setCategory] = useState<string>("All");
   const [portal, setPortal] = useState<string>("All");
+  const [activeChips, setActiveChips] = useState<string[]>([]);
+  const [view, setView] = useState<ViewMode>("list");
   const [starred, setStarred] = useState<string[]>([]);
   const [selectedId, setSelectedId] = useState<string>(allTenders[0]?.tenderId ?? "");
+
+  const toggleStar = (id: string) =>
+    setStarred((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   const categories = useMemo(
     () => ["All", ...Array.from(new Set(allTenders.map((t) => t.category)))],
@@ -155,6 +169,7 @@ function TendersPage() {
       if (relevance !== "All" && t.relevance.label !== (relevance as RelevanceLabel)) return false;
       if (category !== "All" && t.category !== category) return false;
       if (portal !== "All" && !t.sourcePortals.includes(portal)) return false;
+      if (activeChips.length > 0 && !activeChips.some((c) => matchesQuickFilter(t, c))) return false;
       if (!q) return true;
       return [t.title, t.agency, t.tenderId, t.category, ...t.relevance.matchedKeywords]
         .join(" ")
@@ -164,12 +179,29 @@ function TendersPage() {
 
     return [...list].sort((a, b) =>
       sort === "relevance"
-        ? b.relevance.score - a.relevance.score
+        ? relevanceStrength[b.relevance.label].segments -
+            relevanceStrength[a.relevance.label].segments ||
+          new Date(b.publishedDate).getTime() - new Date(a.publishedDate).getTime()
         : new Date(b.publishedDate).getTime() - new Date(a.publishedDate).getTime(),
     );
-  }, [query, status, sort, relevance, category, portal]);
+  }, [query, status, sort, relevance, category, portal, activeChips]);
+
+  const topMatches = useMemo(
+    () =>
+      allTenders
+        .filter((t) => t.status === "OPEN" && daysToClose(t.closingDate) >= 0)
+        .sort(
+          (a, b) =>
+            relevanceStrength[b.relevance.label].segments -
+              relevanceStrength[a.relevance.label].segments ||
+            new Date(a.closingDate).getTime() - new Date(b.closingDate).getTime(),
+        )
+        .slice(0, 3),
+    [],
+  );
 
   const selected = filtered.find((t) => t.tenderId === selectedId) ?? filtered[0];
+
 
   return (
     <div className="flex min-h-screen bg-surface">
