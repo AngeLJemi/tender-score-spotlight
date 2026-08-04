@@ -35,6 +35,38 @@ export const relevanceStyles: Record<RelevanceLabel, string> = {
   Low: "bg-relevance-low/15 text-relevance-low border-relevance-low/25",
 };
 
+/** Visual strength: 3 = Strong, 2 = Possible, 1 = Low. No numeric score is shown. */
+export const relevanceStrength: Record<RelevanceLabel, { segments: number; text: string }> = {
+  High: { segments: 3, text: "Strong Match" },
+  Medium: { segments: 2, text: "Possible Match" },
+  Low: { segments: 1, text: "Low Match" },
+};
+
+/** "Matches ICU, Ventilators and Operating Theatre keywords" */
+export function keywordSentence(keywords: string[]): string | null {
+  if (keywords.length === 0) return null;
+  const list =
+    keywords.length === 1
+      ? keywords[0]
+      : `${keywords.slice(0, -1).join(", ")} and ${keywords[keywords.length - 1]}`;
+  return `Matches ${list} keyword${keywords.length === 1 ? "" : "s"}`;
+}
+
+export const quickFilters = [
+  "ICU",
+  "Operating Theatre",
+  "Emergency & Rescue",
+  "Hospital Ward",
+  "Medical Equipment",
+];
+
+export function matchesQuickFilter(tender: Tender, term: string): boolean {
+  const haystack = [tender.category, tender.title, ...tender.relevance.matchedKeywords]
+    .join(" ")
+    .toLowerCase();
+  return haystack.includes(term.toLowerCase());
+}
+
 const NOW = new Date("2026-08-04T10:00:00Z");
 
 export function daysToClose(closingDate: string): number {
