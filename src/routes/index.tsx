@@ -21,7 +21,6 @@ import {
 } from "@/lib/tenders";
 import { TenderCard } from "@/components/tenders/TenderCard";
 import { TenderDetail } from "@/components/tenders/TenderDetail";
-import { TopMatches } from "@/components/tenders/TopMatches";
 import {
   Select,
   SelectContent,
@@ -62,7 +61,7 @@ const navItems = [
 
 function Sidebar() {
   return (
-    <aside className="hidden w-64 shrink-0 flex-col justify-between border-r border-sidebar-border bg-sidebar p-4 lg:flex">
+    <aside className="hidden w-56 shrink-0 flex-col justify-between border-r border-sidebar-border bg-sidebar p-3.5 lg:flex">
       <div>
         <div className="flex items-center gap-2.5 px-2 py-2">
           <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary/12 text-primary">
@@ -71,13 +70,13 @@ function Sidebar() {
           <span className="font-display text-lg font-semibold italic">Equip Medical</span>
         </div>
 
-        <nav className="mt-6 space-y-1">
+        <nav className="mt-3 space-y-1">
           {navItems.map((item) => (
             <button
               key={item.label}
               type="button"
               className={cn(
-                "flex w-full items-center gap-3 rounded-full px-4 py-3 text-sm font-medium transition-colors",
+                "flex w-full items-center gap-3 rounded-full px-4 py-2.5 text-sm font-medium transition-colors",
                 item.active
                   ? "bg-primary text-primary-foreground"
                   : "text-sidebar-foreground hover:bg-sidebar-accent",
@@ -187,19 +186,6 @@ function TendersPage() {
     );
   }, [query, status, sort, relevance, category, portal, activeChips]);
 
-  const topMatches = useMemo(
-    () =>
-      allTenders
-        .filter((t) => t.status === "OPEN" && daysToClose(t.closingDate) >= 0)
-        .sort(
-          (a, b) =>
-            relevanceStrength[b.relevance.label].segments -
-              relevanceStrength[a.relevance.label].segments ||
-            new Date(a.closingDate).getTime() - new Date(b.closingDate).getTime(),
-        )
-        .slice(0, 3),
-    [],
-  );
 
   const selected = filtered.find((t) => t.tenderId === selectedId) ?? filtered[0];
 
@@ -339,8 +325,6 @@ function TendersPage() {
             />
             <FilterSelect label="Source" value={portal} onChange={setPortal} options={portals} />
           </div>
-
-          <TopMatches tenders={topMatches} selectedId={selected?.tenderId} onSelect={setSelectedId} />
 
           <p className="mt-5 text-sm text-muted-foreground">
             Showing {filtered.length} of {allTenders.length} tenders
