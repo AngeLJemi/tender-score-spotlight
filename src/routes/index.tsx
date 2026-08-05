@@ -21,15 +21,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type TenderSearch = { status: StatusFilter | undefined; sort: SortKey | undefined };
+type TenderSearch = { status?: StatusFilter; sort?: SortKey };
 
 export const Route = createFileRoute("/")({
   validateSearch: (search: Record<string, unknown>): TenderSearch => {
     const s = search["status"];
     const o = search["sort"];
     return {
-      status: s === "Open" || s === "Closed" || s === "All" ? s : undefined,
-      sort: o === "relevance" || o === "closing" || o === "recent" ? o : undefined,
+      ...(s === "Open" || s === "Closed" || s === "All" ? { status: s } : {}),
+      ...(o === "relevance" || o === "closing" || o === "recent" ? { sort: o } : {}),
     };
   },
   head: () => ({
