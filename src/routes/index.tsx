@@ -323,12 +323,8 @@ function TendersPage() {
               onChange={setCategory}
               options={categories}
             />
-            <FilterSelect label="Source" value={portal} onChange={setPortal} options={portals} />
-          </div>
 
-          
 
-          <p className="mt-5 text-sm text-muted-foreground">
             Showing {filtered.length} of {allTenders.length} tenders
           </p>
 
