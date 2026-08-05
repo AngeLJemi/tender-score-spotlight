@@ -1,15 +1,7 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import {
-  ChevronsUpDown,
-  FileText,
-  LayoutGrid,
-  PanelLeft,
-  Rows3,
-  Search,
-  Settings,
-  Stethoscope,
-} from "lucide-react";
+import { LayoutGrid, PanelLeft, Rows3, Search } from "lucide-react";
+import { Sidebar } from "@/components/layout/Sidebar";
 import { cn } from "@/lib/utils";
 import {
   daysToClose,
@@ -29,7 +21,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+type TenderSearch = { status?: StatusFilter; sort?: SortKey };
+
 export const Route = createFileRoute("/")({
+  validateSearch: (search: Record<string, unknown>): TenderSearch => {
+    const s = search["status"];
+    const o = search["sort"];
+    return {
+      ...(s === "Open" || s === "Closed" || s === "All" ? { status: s } : {}),
+      ...(o === "relevance" || o === "closing" || o === "recent" ? { sort: o } : {}),
+    };
+  },
   head: () => ({
     meta: [
       { title: "Tenders · Equip Medical Tender Portal" },
@@ -50,58 +52,8 @@ export const Route = createFileRoute("/")({
 });
 
 type StatusFilter = "All" | "Open" | "Closed";
-type SortKey = "recent" | "relevance";
+type SortKey = "recent" | "relevance" | "closing";
 type ViewMode = "list" | "grid";
-
-const navItems = [
-  { label: "Dashboard", icon: LayoutGrid, active: false },
-  { label: "Tenders", icon: FileText, active: true },
-  { label: "Settings", icon: Settings, active: false },
-];
-
-function Sidebar() {
-  return (
-    <aside className="hidden w-56 shrink-0 flex-col justify-between border-r border-sidebar-border bg-sidebar p-3.5 lg:flex">
-      <div>
-        <div className="flex items-center gap-2.5 px-2 py-2">
-          <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary/12 text-primary">
-            <Stethoscope className="size-5" />
-          </span>
-          <span className="font-display text-lg font-semibold italic">Equip Medical</span>
-        </div>
-
-        <nav className="mt-3 space-y-1">
-          {navItems.map((item) => (
-            <button
-              key={item.label}
-              type="button"
-              className={cn(
-                "flex w-full items-center gap-3 rounded-full px-4 py-2.5 text-sm font-medium transition-colors",
-                item.active
-                  ? "bg-primary text-primary-foreground"
-                  : "text-sidebar-foreground hover:bg-sidebar-accent",
-              )}
-            >
-              <item.icon className="size-4 shrink-0" />
-              {item.label}
-            </button>
-          ))}
-        </nav>
-      </div>
-
-      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-xl px-2 py-2 hover:bg-sidebar-accent">
-        <span className="grid size-9 shrink-0 place-items-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
-          CN
-        </span>
-        <span className="min-w-0">
-          <span className="block truncate text-sm font-medium">Angel</span>
-          <span className="block truncate text-xs text-muted-foreground">angel@inextlabs.com</span>
-        </span>
-        <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground" />
-      </div>
-    </aside>
-  );
-}
 
 function FilterSelect({
   value,
@@ -137,9 +89,10 @@ function FilterSelect({
 }
 
 function TendersPage() {
+  const search = Route.useSearch();
   const [query, setQuery] = useState("");
-  const [status, setStatus] = useState<StatusFilter>("All");
-  const [sort, setSort] = useState<SortKey>("recent");
+  const [status, setStatus] = useState<StatusFilter>(search.status ?? "All");
+  const [sort, setSort] = useState<SortKey>(search.sort ?? "recent");
   const [relevance, setRelevance] = useState<string>("All");
   const [category, setCategory] = useState<string>("All");
   const [portal, setPortal] = useState<string>("All");
@@ -176,6 +129,12 @@ function TendersPage() {
         .toLowerCase()
         .includes(q);
     });
+
+    if (sort === "closing") {
+      return [...list].sort(
+        (a, b) => new Date(a.closingDate).getTime() - new Date(b.closingDate).getTime(),
+      );
+    }
 
     return [...list].sort((a, b) =>
       sort === "relevance"
@@ -225,6 +184,7 @@ function TendersPage() {
                 <SelectContent>
                   <SelectItem value="recent">Recently published</SelectItem>
                   <SelectItem value="relevance">Highest relevance first</SelectItem>
+                  <SelectItem value="closing">Closing soonest</SelectItem>
                 </SelectContent>
               </Select>
 

@@ -69,8 +69,15 @@ export function matchesQuickFilter(tender: Tender, term: string): boolean {
 
 const NOW = new Date("2026-08-04T10:00:00Z");
 
+/** Reference "today" used across the app (mock data is fixed in time). */
+export const today = NOW;
+
 export function daysToClose(closingDate: string): number {
   return Math.ceil((new Date(closingDate).getTime() - NOW.getTime()) / 86_400_000);
+}
+
+export function daysSincePublished(publishedDate: string): number {
+  return Math.floor((NOW.getTime() - new Date(publishedDate).getTime()) / 86_400_000);
 }
 
 export function formatDateTime(iso: string): string {
