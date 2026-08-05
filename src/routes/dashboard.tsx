@@ -178,7 +178,7 @@ function DashboardPage() {
           <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
             <Panel title="Relevance breakdown" subtitle="Open tenders by match strength">
               <div className="flex items-center gap-4">
-                <div className="shrink-0">
+                <div className="size-[140px] shrink-0">
                   <PieChart width={140} height={140}>
                     <Pie
                       data={relevanceBreakdown}
@@ -190,6 +190,7 @@ function DashboardPage() {
                       outerRadius={66}
                       paddingAngle={2}
                       stroke="none"
+                      isAnimationActive={false}
                     >
                       {relevanceBreakdown.map((d) => (
                         <Cell key={d.label} fill={d.color} />
