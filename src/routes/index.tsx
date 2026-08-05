@@ -21,19 +21,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type TenderSearch = { status?: StatusFilter; sort?: SortKey };
+type TenderSearch = { status: StatusFilter | undefined; sort: SortKey | undefined };
 
 export const Route = createFileRoute("/")({
-  validateSearch: (search: Record<string, unknown>): TenderSearch => ({
-    status:
-      search.status === "Open" || search.status === "Closed" || search.status === "All"
-        ? search.status
-        : undefined,
-    sort:
-      search.sort === "relevance" || search.sort === "closing" || search.sort === "recent"
-        ? search.sort
-        : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>): TenderSearch => {
+    const s = search["status"];
+    const o = search["sort"];
+    return {
+      status: s === "Open" || s === "Closed" || s === "All" ? s : undefined,
+      sort: o === "relevance" || o === "closing" || o === "recent" ? o : undefined,
+    };
+  },
   head: () => ({
     meta: [
       { title: "Tenders · Equip Medical Tender Portal" },
