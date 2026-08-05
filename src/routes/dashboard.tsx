@@ -178,25 +178,25 @@ function DashboardPage() {
           <div className="grid gap-4 md:grid-cols-2 2xl:grid-cols-4">
             <Panel title="Relevance breakdown" subtitle="Open tenders by match strength">
               <div className="flex items-center gap-4">
-                <div className="h-[136px] w-[136px] shrink-0">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={relevanceBreakdown}
-                        dataKey="value"
-                        nameKey="label"
-                        innerRadius={38}
-                        outerRadius={64}
-                        paddingAngle={2}
-                        stroke="none"
-                      >
-                        {relevanceBreakdown.map((d) => (
-                          <Cell key={d.label} fill={d.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip {...tooltipStyle} />
-                    </PieChart>
-                  </ResponsiveContainer>
+                <div className="shrink-0">
+                  <PieChart width={140} height={140}>
+                    <Pie
+                      data={relevanceBreakdown}
+                      dataKey="value"
+                      nameKey="label"
+                      cx={68}
+                      cy={68}
+                      innerRadius={40}
+                      outerRadius={66}
+                      paddingAngle={2}
+                      stroke="none"
+                    >
+                      {relevanceBreakdown.map((d) => (
+                        <Cell key={d.label} fill={d.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip {...tooltipStyle} />
+                  </PieChart>
                 </div>
                 <ul className="min-w-0 space-y-2 text-sm">
                   {relevanceBreakdown.map((d) => (
