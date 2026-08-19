@@ -103,7 +103,6 @@ export const awardedTenders: AwardedTender[] = [
     contractEnd: "2027-11-17T00:00:00Z",
     warrantyPeriod: "5 years",
     totalPrice: 1_284_000,
-    warrantyPeriodNote: undefined,
     lineItems: [
       {
         sku: "EM-VENT-9200",
