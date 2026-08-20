@@ -99,8 +99,13 @@ export function TenderDetail({ tender }: { tender: Tender }) {
             </div>
           )}
           <p className="mt-3 text-sm text-muted-foreground">{tender.relevance.reason}</p>
+
+          <RelevanceControl tender={tender} />
         </div>
+
+        <MatchedContracts tender={tender} />
       </Section>
+
 
 
       <Section title="AI summary">
