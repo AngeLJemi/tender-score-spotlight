@@ -1,10 +1,18 @@
 import { Link } from "@tanstack/react-router";
-import { ChevronsUpDown, FileText, LayoutGrid, Settings, Stethoscope } from "lucide-react";
+import {
+  BookMarked,
+  ChevronsUpDown,
+  FileText,
+  LayoutGrid,
+  Settings,
+  Stethoscope,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { label: "Dashboard", icon: LayoutGrid, to: "/dashboard" as const },
   { label: "Tenders", icon: FileText, to: "/" as const },
+  { label: "Tenders Library", icon: BookMarked, to: "/library" as const },
   { label: "Settings", icon: Settings, to: "/settings" as const },
 ];
 
