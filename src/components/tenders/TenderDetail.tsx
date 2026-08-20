@@ -1,5 +1,9 @@
+import { useEffect, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import {
   CalendarDays,
+  Check,
+  Link as LinkIcon,
   CalendarClock,
   ExternalLink,
   Mail,
@@ -10,6 +14,15 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { daysToClose, formatDateTime, keywordSentence, type Tender } from "@/lib/tenders";
+import { relevanceStrength } from "@/lib/tenders";
+import { matchedContracts, matchStrengthStyles } from "@/lib/library";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { KeywordChip, RelevanceBadge, Tag } from "./RelevanceBadge";
 
 function Section({
@@ -192,6 +205,153 @@ export function TenderDetail({ tender }: { tender: Tender }) {
       <Section title="Description">
         <p className="text-sm leading-relaxed text-foreground/90">{tender.description}</p>
       </Section>
+    </div>
+  );
+}
+
+type OverrideLabel = "Strong Match" | "Possible Match" | "Not Relevant" | "Unrated";
+
+const overrideOptions: OverrideLabel[] = [
+  "Strong Match",
+  "Possible Match",
+  "Not Relevant",
+  "Unrated",
+];
+
+function RelevanceControl({ tender }: { tender: Tender }) {
+  const suggested = relevanceStrength[tender.relevance.label].text as OverrideLabel;
+  const [value, setValue] = useState<OverrideLabel>(suggested);
+  const [draft, setDraft] = useState<OverrideLabel>(suggested);
+  const [note, setNote] = useState("");
+  const [savedNote, setSavedNote] = useState("");
+  const [changedAt, setChangedAt] = useState<Date | null>(null);
+
+  useEffect(() => {
+    setValue(suggested);
+    setDraft(suggested);
+    setNote("");
+    setSavedNote("");
+    setChangedAt(null);
+  }, [tender.tenderId, suggested]);
+
+  const dirty = draft !== value || note !== savedNote;
+
+  return (
+    <div className="mt-4 border-t border-border pt-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm font-medium">Relevance</span>
+        <Select value={draft} onValueChange={(v) => setDraft(v as OverrideLabel)}>
+          <SelectTrigger
+            className="h-9 w-auto min-w-[11rem] rounded-full border-border bg-card text-sm"
+            aria-label="Override relevance"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {overrideOptions.map((o) => (
+              <SelectItem key={o} value={o}>
+                {o}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <span className="text-xs text-muted-foreground">AI suggested: {suggested}</span>
+      </div>
+
+      <label className="mt-3 block">
+        <span className="text-xs font-medium text-muted-foreground">
+          Why did this change? (optional)
+        </span>
+        <textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          rows={2}
+          placeholder="e.g. Scope is facilities management, not medical equipment."
+          className="mt-1.5 w-full resize-none rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary/40 focus:ring-4 focus:ring-primary/10"
+        />
+      </label>
+
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          disabled={!dirty}
+          onClick={() => {
+            setValue(draft);
+            setSavedNote(note);
+            setChangedAt(new Date());
+          }}
+          className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40"
+        >
+          <Check className="size-4" />
+          Save
+        </button>
+        {changedAt && (
+          <span className="text-xs text-muted-foreground">
+            Last changed by Angel on {formatDateTime(changedAt.toISOString())}
+          </span>
+        )}
+      </div>
+      {changedAt && savedNote && (
+        <p className="mt-2 text-xs text-muted-foreground italic">“{savedNote}”</p>
+      )}
+    </div>
+  );
+}
+
+function MatchedContracts({ tender }: { tender: Tender }) {
+  const matches = matchedContracts({
+    title: tender.title,
+    category: tender.category,
+    keywords: tender.relevance.matchedKeywords,
+  });
+
+  return (
+    <div className="mt-4">
+      <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+        Matched awarded contracts
+      </p>
+
+      {matches.length === 0 ? (
+        <p className="mt-2 text-sm text-muted-foreground">
+          No awarded contracts matched automatically.
+        </p>
+      ) : (
+        <ul className="mt-2 space-y-2">
+          {matches.map((m) => (
+            <li
+              key={m.entry.id}
+              className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-border bg-card p-3"
+            >
+              <span className="font-mono text-xs text-muted-foreground">{m.entry.id}</span>
+              <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                {m.matchedOn.join(", ")}
+              </span>
+              <span
+                className={cn(
+                  "inline-flex shrink-0 items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold",
+                  matchStrengthStyles[m.strength],
+                )}
+              >
+                {m.strength} Match
+              </span>
+              <Link
+                to="/library"
+                className="shrink-0 text-sm font-semibold text-primary hover:underline"
+              >
+                View
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <Link
+        to="/library"
+        className="mt-3 inline-flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-2 text-sm font-medium transition-colors hover:bg-surface"
+      >
+        <LinkIcon className="size-4 text-muted-foreground" />
+        Link to Library
+      </Link>
     </div>
   );
 }
