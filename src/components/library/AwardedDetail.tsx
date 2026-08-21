@@ -1,4 +1,4 @@
-import { CalendarDays, FileText, Paperclip, Pencil, Plus, Sparkle } from "lucide-react";
+import { Archive, CalendarDays, FileText, Paperclip, Pencil, Plus, Sparkle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tag } from "@/components/tenders/RelevanceBadge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -28,16 +28,28 @@ export function AwardedDetail({
   entry,
   onEdit,
   onAdd,
+  backLink,
 }: {
   entry: AwardedTender;
   onEdit: () => void;
   onAdd: () => void;
+  backLink?: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-5 p-6">
-      <header>
-        <p className="font-mono text-xs tracking-wide text-muted-foreground">{entry.id}</p>
-        <h2 className="mt-1.5 text-2xl leading-tight font-semibold">{entry.loaNumber}</h2>
+    <div className="flex flex-col gap-5">
+      <header className="border-b border-library/15 bg-library-band/60 p-6">
+        {backLink}
+        <div className="flex items-start justify-between gap-3">
+          <p className="inline-flex items-center rounded-md bg-library/10 px-2 py-0.5 font-mono text-[11px] tracking-wide text-library">
+            {entry.id}
+          </p>
+          <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-library/25 px-2.5 py-1 text-[10px] font-bold tracking-[0.12em] text-library/70 uppercase">
+            <Archive className="size-3" /> Awarded contract
+          </span>
+        </div>
+        <h2 className="mt-1.5 text-2xl leading-tight font-semibold text-library">
+          {entry.loaNumber}
+        </h2>
         <p className="mt-1.5 text-muted-foreground">{entry.customer}</p>
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -48,10 +60,10 @@ export function AwardedDetail({
           </span>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-4 rounded-xl border border-border bg-surface-strong/60 p-4">
+        <div className="mt-4 grid grid-cols-2 gap-4 rounded-xl border border-library/15 bg-card p-4">
           <div>
             <p className="text-sm text-muted-foreground">Contracted total</p>
-            <p className="mt-1 font-display text-lg font-semibold">
+            <p className="mt-1 font-display text-lg font-semibold text-library">
               {formatMoney(entry.totalPrice)}
             </p>
           </div>
@@ -65,7 +77,7 @@ export function AwardedDetail({
           <button
             type="button"
             onClick={onAdd}
-            className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+            className="inline-flex items-center gap-2 rounded-full bg-library px-4 py-2.5 text-sm font-semibold text-library-foreground transition-colors hover:bg-library/90"
           >
             <Plus className="size-4" /> Add to Library
           </button>
@@ -79,7 +91,8 @@ export function AwardedDetail({
         </div>
       </header>
 
-      <Section title="Line items">
+      <div className="flex flex-col gap-5 px-6 pb-6">
+      <Section title="Line items" className="border-t-0 pt-0">
         <div className="overflow-x-auto rounded-xl border border-border">
           <table className="w-full min-w-[42rem] text-left text-sm">
             <thead className="bg-muted/60 text-xs tracking-wide text-muted-foreground uppercase">
@@ -137,7 +150,7 @@ export function AwardedDetail({
               key={doc.name}
               className="flex items-center gap-3 rounded-xl border border-border bg-card p-3 text-sm"
             >
-              <FileText className="size-4 shrink-0 text-primary" />
+              <FileText className="size-4 shrink-0 text-library" />
               <span className="min-w-0 flex-1 truncate font-medium">{doc.name}</span>
               <span className="shrink-0 text-xs text-muted-foreground">{doc.size}</span>
             </div>
@@ -145,7 +158,7 @@ export function AwardedDetail({
           <button
             type="button"
             onClick={onEdit}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border p-3 text-sm font-medium text-muted-foreground hover:border-primary/40 hover:text-foreground"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border p-3 text-sm font-medium text-muted-foreground hover:border-library/40 hover:text-foreground"
           >
             <Paperclip className="size-4" /> Attach contract or LOA document
           </button>
@@ -157,6 +170,7 @@ export function AwardedDetail({
           <p className="text-sm leading-relaxed text-foreground/90">{entry.notes}</p>
         </Section>
       )}
+      </div>
     </div>
   );
 }

@@ -51,24 +51,27 @@ export function LibraryCard({
       className={cn(
         "w-full text-left transition-all",
         isGrid
-          ? "flex h-full flex-col rounded-2xl border border-border bg-card p-6 hover:-translate-y-0.5 hover:shadow-lg"
-          : "border-b border-border px-6 py-6 last:border-b-0 hover:shadow-[inset_3px_0_0_0_var(--color-primary)]",
-        !isGrid && (selected ? "bg-accent" : "bg-card hover:bg-surface"),
-        isGrid && selected && "border-primary/40 bg-accent",
+          ? "flex h-full flex-col rounded-2xl border border-library/15 border-l-4 border-l-library/60 bg-library-tint p-6 hover:-translate-y-0.5 hover:shadow-lg"
+          : "border-b border-border border-l-4 px-6 py-6 last:border-b-0",
+        !isGrid &&
+          (selected
+            ? "border-l-library bg-library-band/70"
+            : "border-l-library/25 bg-library-tint hover:border-l-library/60 hover:bg-library-band/40"),
+        isGrid && selected && "border-library/40 bg-library-band/70",
       )}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2.5">
           <span
             className={cn(
-              "grid shrink-0 place-items-center rounded-xl bg-primary/10 text-primary",
+              "grid shrink-0 place-items-center rounded-xl bg-library/10 text-library",
               isGrid ? "size-11" : "size-8",
             )}
           >
             <Icon className={isGrid ? "size-5" : "size-4"} />
           </span>
           <span className="min-w-0">
-            <span className="block truncate font-mono text-xs tracking-wide text-muted-foreground">
+            <span className="inline-flex items-center rounded-md bg-library/10 px-2 py-0.5 font-mono text-[11px] tracking-wide text-library">
               {entry.id}
             </span>
             <span className="block truncate text-sm text-muted-foreground">{entry.customer}</span>
@@ -89,9 +92,9 @@ export function LibraryCard({
               onToggleStar();
             }
           }}
-          className="grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-primary"
+          className="grid size-8 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-library/10 hover:text-library"
         >
-          <Star className={cn("size-4", starred && "fill-primary text-primary")} />
+          <Star className={cn("size-4", starred && "fill-library text-library")} />
         </span>
       </div>
 
@@ -109,20 +112,32 @@ export function LibraryCard({
         {items.map((i) => i.productName).join(" · ")}
       </p>
 
-      <div
-        className={cn(
-          "mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm",
-          isGrid && "mt-auto pt-4",
-        )}
-      >
-        <span className="font-display text-lg font-semibold">{formatMoney(entry.totalPrice)}</span>
-        <span className="flex items-center gap-1.5 text-muted-foreground">
-          <ShieldCheck className="size-4" /> {entry.warrantyPeriod} warranty
-        </span>
-        <span className="flex items-center gap-1.5 text-muted-foreground">
-          <CalendarDays className="size-4" /> Awarded {formatDate(entry.awardDate)}
-        </span>
-        <span className="ml-auto text-sm font-semibold text-primary">View Details</span>
+      <div className={cn("mt-4", isGrid && "mt-auto pt-4")}>
+        <div className="flex flex-wrap items-stretch gap-2">
+          <span className="rounded-xl border border-library/15 bg-card px-3 py-2">
+            <span className="block text-[11px] tracking-wide text-muted-foreground uppercase">
+              Contracted price
+            </span>
+            <span className="mt-0.5 block font-display text-lg leading-none font-semibold text-library">
+              {formatMoney(entry.totalPrice)}
+            </span>
+          </span>
+          <span className="rounded-xl border border-library/15 bg-card px-3 py-2">
+            <span className="block text-[11px] tracking-wide text-muted-foreground uppercase">
+              Warranty
+            </span>
+            <span className="mt-0.5 flex items-center gap-1.5 font-display text-lg leading-none font-semibold">
+              <ShieldCheck className="size-4 text-library" /> {entry.warrantyPeriod}
+            </span>
+          </span>
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+          <span className="flex items-center gap-1.5 text-muted-foreground">
+            <CalendarDays className="size-4" /> Awarded {formatDate(entry.awardDate)}
+          </span>
+          <span className="ml-auto text-sm font-semibold text-library">View Details</span>
+        </div>
       </div>
     </button>
   );
