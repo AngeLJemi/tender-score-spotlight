@@ -54,7 +54,7 @@ export function Sidebar() {
               <Link
                 key={item.label}
                 to={item.to}
-                activeOptions={{ exact: true }}
+                activeOptions={{ exact: true, includeSearch: false }}
                 className={cn(base, inactive)}
                 activeProps={{ className: activeClass }}
               >
