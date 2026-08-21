@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import {
-  BookMarked,
   ChevronsUpDown,
+  Database,
   FileText,
   LayoutGrid,
   Settings,
@@ -10,10 +10,15 @@ import {
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { label: "Dashboard", icon: LayoutGrid, to: "/dashboard" as const },
-  { label: "Tenders", icon: FileText, to: "/" as const },
-  { label: "Tenders Library", icon: BookMarked, to: "/library" as const },
-  { label: "Settings", icon: Settings, to: "/settings" as const },
+  { label: "Dashboard", icon: LayoutGrid, to: "/dashboard" as const, accent: "primary" as const },
+  { label: "Tenders", icon: FileText, to: "/" as const, accent: "primary" as const },
+  {
+    label: "Tenders Library",
+    icon: Database,
+    to: "/library" as const,
+    accent: "library" as const,
+  },
+  { label: "Settings", icon: Settings, to: "/settings" as const, accent: "primary" as const },
 ];
 
 export function Sidebar() {
@@ -41,13 +46,17 @@ export function Sidebar() {
                 </span>
               );
             }
+            const activeClass =
+              item.accent === "library"
+                ? "bg-library text-library-foreground hover:bg-library"
+                : "bg-primary text-primary-foreground hover:bg-primary";
             return (
               <Link
                 key={item.label}
                 to={item.to}
-                activeOptions={{ exact: true }}
+                activeOptions={{ exact: true, includeSearch: false }}
                 className={cn(base, inactive)}
-                activeProps={{ className: "bg-primary text-primary-foreground hover:bg-primary" }}
+                activeProps={{ className: activeClass }}
               >
                 <item.icon className="size-4 shrink-0" />
                 {item.label}

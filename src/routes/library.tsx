@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { LayoutGrid, PanelLeft, Plus, Rows3, Search } from "lucide-react";
+import { ArrowLeft, Database, LayoutGrid, PanelLeft, Plus, Rows3, Search } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { cn } from "@/lib/utils";
 import {
@@ -24,7 +25,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+type LibrarySearch = { entry?: string; fromTender?: string };
+
 export const Route = createFileRoute("/library")({
+  validateSearch: (search: Record<string, unknown>): LibrarySearch => {
+    const entry = search["entry"];
+    const fromTender = search["fromTender"];
+    return {
+      ...(typeof entry === "string" ? { entry } : {}),
+      ...(typeof fromTender === "string" ? { fromTender } : {}),
+    };
+  },
   head: () => ({
     meta: [
       { title: "Tenders Library · Equip Medical" },
@@ -64,7 +75,7 @@ function FilterSelect({
       <SelectTrigger
         className={cn(
           "h-9 w-auto min-w-[9rem] rounded-full border-border bg-card text-sm",
-          value !== "All" && "border-primary/40 bg-accent text-accent-foreground",
+          value !== "All" && "border-library/40 bg-library-band text-library",
         )}
         aria-label={label}
       >
@@ -82,6 +93,7 @@ function FilterSelect({
 }
 
 function LibraryPage() {
+  const search = Route.useSearch();
   const [entries, setEntries] = useState<AwardedTender[]>(seedAwarded);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
@@ -91,7 +103,7 @@ function LibraryPage() {
   const [price, setPrice] = useState("All");
   const [view, setView] = useState<ViewMode>("list");
   const [starred, setStarred] = useState<string[]>([]);
-  const [selectedId, setSelectedId] = useState<string>(seedAwarded[0]?.id ?? "");
+  const [selectedId, setSelectedId] = useState<string>(search.entry ?? seedAwarded[0]?.id ?? "");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<AwardedTender | null>(null);
 
@@ -145,22 +157,28 @@ function LibraryPage() {
       <Sidebar />
 
       <main className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center gap-4 border-b border-border bg-card px-5 py-4">
-          <PanelLeft className="size-5 shrink-0 text-muted-foreground" />
-          <span className="h-6 w-px bg-border" />
-          <h1 className="truncate text-xl font-semibold">Tenders Library</h1>
+        <header className="border-b border-library/15 bg-library-band/70 px-5 py-4">
+          <div className="flex items-center gap-4">
+            <PanelLeft className="size-5 shrink-0 text-library/70" />
+            <span className="h-6 w-px bg-library/20" />
+            <Database className="size-5 shrink-0 text-library" />
+            <h1 className="truncate text-xl font-semibold text-library">Tenders Library</h1>
+          </div>
+          <p className="mt-2 inline-flex items-center gap-2 rounded-full bg-library px-3 py-1 text-[10px] font-bold tracking-[0.14em] text-library-foreground uppercase">
+            Internal — awarded contracts
+          </p>
         </header>
 
         <div className="min-w-0 flex-1 p-5">
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 md:flex md:justify-between">
             <div className="group relative min-w-0 md:w-[30rem]">
-              <Search className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
+              <Search className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-library" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search by Tender ID, SKU, product, customer or keyword..."
                 aria-label="Search awarded tenders"
-                className="h-12 w-full rounded-full border border-border bg-card pr-4 pl-11 text-sm shadow-sm outline-none transition-shadow placeholder:text-muted-foreground focus:border-primary/40 focus:shadow-md focus:ring-4 focus:ring-primary/10"
+                className="h-12 w-full rounded-full border border-border bg-card pr-4 pl-11 text-sm shadow-sm outline-none transition-shadow placeholder:text-muted-foreground focus:border-library/40 focus:shadow-md focus:ring-4 focus:ring-library/10"
               />
             </div>
 
@@ -171,7 +189,7 @@ function LibraryPage() {
                   setEditing(null);
                   setDialogOpen(true);
                 }}
-                className="inline-flex h-11 shrink-0 items-center gap-2 rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+                className="inline-flex h-11 shrink-0 items-center gap-2 rounded-full bg-library px-4 text-sm font-semibold text-library-foreground transition-colors hover:bg-library/90"
               >
                 <Plus className="size-4" />
                 Add Awarded Tender
@@ -196,7 +214,7 @@ function LibraryPage() {
                     className={cn(
                       "grid size-9 place-items-center rounded-full transition-colors",
                       view === v.key
-                        ? "bg-primary text-primary-foreground"
+                        ? "bg-library text-library-foreground"
                         : "text-muted-foreground hover:text-foreground",
                     )}
                   >
@@ -217,7 +235,7 @@ function LibraryPage() {
                 className={cn(
                   "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
                   category === f
-                    ? "border-primary/40 bg-accent text-accent-foreground"
+                    ? "border-library/40 bg-library-band text-library"
                     : "border-border bg-card text-muted-foreground hover:text-foreground",
                 )}
               >
@@ -267,7 +285,7 @@ function LibraryPage() {
                   <button
                     type="button"
                     onClick={() => setDialogOpen(true)}
-                    className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                    className="mt-4 inline-flex items-center gap-2 rounded-full bg-library px-4 py-2.5 text-sm font-semibold text-library-foreground hover:bg-library/90"
                   >
                     <Plus className="size-4" />
                     Add Awarded Tender
@@ -308,9 +326,21 @@ function LibraryPage() {
             </div>
 
             {selected && (
-              <div className="min-w-0 self-start rounded-2xl border border-border bg-card shadow-sm xl:sticky xl:top-5 xl:max-h-[calc(100vh-2.5rem)] xl:overflow-y-auto">
+              <div className="min-w-0 self-start overflow-hidden rounded-2xl border border-library/20 bg-card shadow-sm xl:sticky xl:top-5 xl:max-h-[calc(100vh-2.5rem)] xl:overflow-y-auto">
                 <AwardedDetail
                   entry={selected}
+                  {...(search.fromTender
+                    ? {
+                        backLink: (
+                          <Link
+                            to="/"
+                            className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-library/25 bg-card px-3 py-1.5 text-xs font-semibold text-library transition-colors hover:bg-library/10"
+                          >
+                            <ArrowLeft className="size-3.5" /> Back to Tender
+                          </Link>
+                        ),
+                      }
+                    : {})}
                   onEdit={() => {
                     setEditing(selected);
                     setDialogOpen(true);

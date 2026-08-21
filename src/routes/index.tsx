@@ -154,10 +154,15 @@ function TendersPage() {
       <Sidebar />
 
       <main className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center gap-4 border-b border-border bg-card px-5 py-4">
-          <PanelLeft className="size-5 shrink-0 text-muted-foreground" />
-          <span className="h-6 w-px bg-border" />
-          <h1 className="truncate text-xl font-semibold">Tenders</h1>
+        <header className="border-b border-border bg-card px-5 py-4">
+          <div className="flex items-center gap-4">
+            <PanelLeft className="size-5 shrink-0 text-muted-foreground" />
+            <span className="h-6 w-px bg-border" />
+            <h1 className="truncate text-xl font-semibold">Tenders</h1>
+          </div>
+          <p className="mt-2 inline-flex items-center gap-2 rounded-full bg-accent px-3 py-1 text-[10px] font-bold tracking-[0.14em] text-accent-foreground uppercase">
+            Live tenders — external sources
+          </p>
         </header>
 
         <div className="min-w-0 flex-1 p-5">
