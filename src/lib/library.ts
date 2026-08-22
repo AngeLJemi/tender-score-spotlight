@@ -1,29 +1,83 @@
 import { today } from "./tenders";
 
+export type TieredPrice = {
+  /** e.g. "Year 1-2, Qty 1-4" or "Tier 1, Qty 1-10 units" */
+  label: string;
+  unitPrice: number;
+};
+
+export type MaintenanceSchedule = {
+  /** e.g. "Preventive Maintenance only (per system)" */
+  name: string;
+  rows: { year: string; unitPrice: number }[];
+};
+
+export type RepairCharge = {
+  description: string;
+  uom: string;
+  /** String so values like "Free-of-charge" are representable. */
+  unitPrice: string;
+};
+
+export type SparePart = {
+  description: string;
+  partNumber: string;
+  unitPrice: number;
+  uom: string;
+  /** e.g. "6 years after warranty" */
+  priceHeldFirm: string;
+};
+
+/** Provenance of a single field: AI-extracted until a human edits it. */
+export type FieldMeta = { source: "ai" } | { source: "edited"; by: string; date: string };
+
 export type LineItem = {
   sku: string;
   productName: string;
-  qty: number;
-  unitPrice: number;
+  brandModel?: string | null;
+  manufacturer?: string | null;
+  /** First-order quantity, if applicable. */
+  qty: number | null;
+  /** SGD, excl. GST. */
+  unitPrice: number | null;
   warranty: string;
-  maintenanceCharges: string;
-  notes: string | null;
+  dimensions?: string | null;
+  deliveryTerms?: string | null;
+  notes?: string | null;
+  tieredPricing?: TieredPrice[];
 };
 
 export type ContractStatus = "Active" | "Expiring Soon" | "Expired" | "Under Warranty";
 
 export type AwardedTender = {
   id: string;
+  /** Tender ID / LOA Number, e.g. "HQ2024025A". */
   loaNumber: string;
-  customer: string;
+  /** ITQ / Reference Number, e.g. "HQ2024025". */
+  itqRef?: string | null;
+  /** Contracting body, e.g. "ALPS Pte Ltd". */
+  awardingAgency: string;
+  /** Actual using institution, e.g. "NHCS". */
+  endCustomer: string;
   category: string;
-  awardDate: string;
+  contractStart: string;
   contractEnd: string;
+  /** e.g. "5 years", "3+2 years". */
+  contractDuration: string;
+  /** Summary warranty label for cards/header. */
   warrantyPeriod: string;
-  totalPrice: number;
+  /** Contract value of the first order (SGD, excl. GST); null when not a single total. */
+  totalPrice: number | null;
   lineItems: LineItem[];
+  maintenanceSchedules?: MaintenanceSchedule[];
+  repairCharges?: RepairCharge[];
+  spareParts?: SparePart[];
+  /** Optional accessories, rendered as a collapsed note. */
+  accessoriesNote?: string | null;
   documents: { name: string; size: string }[];
   notes?: string | null;
+  /** Per-field provenance; absent key = manually entered. */
+  fieldMeta?: Record<string, FieldMeta>;
 };
 
 export const libraryCategories = [
@@ -55,6 +109,7 @@ export const awardDateRanges = [
   { label: "Last 6 months", months: 6 },
   { label: "Last 12 months", months: 12 },
   { label: "Last 24 months", months: 24 },
+  { label: "Older", months: Infinity },
 ];
 
 export function formatMoney(value: number): string {
@@ -62,6 +117,16 @@ export function formatMoney(value: number): string {
     style: "currency",
     currency: "SGD",
     maximumFractionDigits: 0,
+  }).format(value);
+}
+
+/** Two-decimal variant for unit/tier/part prices quoted in source documents. */
+export function formatMoneyCents(value: number): string {
+  return new Intl.NumberFormat("en-SG", {
+    style: "currency",
+    currency: "SGD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   }).format(value);
 }
 
@@ -93,169 +158,200 @@ export function monthsSince(iso: string): number {
   return (today.getTime() - new Date(iso).getTime()) / (86_400_000 * 30.44);
 }
 
+/** Mark a list of field keys as AI-extracted (provenance for seeded imports). */
+function aiFields(...keys: string[]): Record<string, FieldMeta> {
+  return Object.fromEntries(keys.map((k) => [k, { source: "ai" as const }]));
+}
+
 export const awardedTenders: AwardedTender[] = [
   {
-    id: "AWD-2025-0142",
-    loaNumber: "LOA/NHG/2025/0142",
-    customer: "National Healthcare Group",
-    category: "ICU",
-    awardDate: "2025-11-18T00:00:00Z",
-    contractEnd: "2027-11-17T00:00:00Z",
-    warrantyPeriod: "5 years",
-    totalPrice: 1_284_000,
+    id: "HQ2024025A",
+    loaNumber: "HQ2024025A",
+    itqRef: "HQ2024025",
+    awardingAgency: "ALPS Pte Ltd",
+    endCustomer: "NHCS (National Heart Centre Singapore) — First Order",
+    category: "Medical Equipment",
+    contractStart: "2024-12-01T00:00:00Z",
+    contractEnd: "2029-11-30T00:00:00Z",
+    contractDuration: "5 years",
+    warrantyPeriod: "1 year (unit)",
+    totalPrice: 10_283,
     lineItems: [
       {
-        sku: "EM-VENT-9200",
-        productName: "ICU Ventilator V9200 (adult/paediatric)",
-        qty: 18,
-        unitPrice: 48_500,
-        warranty: "5 years parts & labour",
-        maintenanceCharges: "$3,200 / unit / year after year 5",
-        notes: "Includes clinical training for 40 nurses.",
+        sku: "AND.TM2657P",
+        productName: "Automatic Arm Barrel Electronic Sphygmomanometer",
+        brandModel: "A&D Medical TM2657P (Japan, 2021 model)",
+        manufacturer: "A&D Medical, Japan",
+        qty: 4,
+        unitPrice: 2_550,
+        warranty: "1 year (against manufacturing defects, unit only)",
+        notes:
+          "Each set includes integrated thermal printer, 1 roll thermal paper, 1 antibacterial arm cuff, power adapter, patient instructional diagram panel, user manual.",
+        tieredPricing: [
+          { label: "Year 1-2, Qty 1-4", unitPrice: 2_550 },
+          { label: "Year 1-2, Qty 5-9", unitPrice: 2_525 },
+          { label: "Year 1-2, Qty ≥10", unitPrice: 2_500 },
+          { label: "Year 3-5, Qty 1-4", unitPrice: 2_680 },
+          { label: "Year 3-5, Qty 5-9", unitPrice: 2_660 },
+          { label: "Year 3-5, Qty ≥10", unitPrice: 2_640 },
+        ],
       },
       {
-        sku: "EM-MON-540",
-        productName: "Multi-parameter Patient Monitor M540",
-        qty: 24,
-        unitPrice: 12_400,
-        warranty: "3 years",
-        maintenanceCharges: "$780 / unit / year",
-        notes: null,
-      },
-      {
-        sku: "EM-CMS-CENTRAL",
-        productName: "Central Monitoring Station (8-bed)",
-        qty: 3,
-        unitPrice: 34_000,
-        warranty: "3 years",
-        maintenanceCharges: "Included for contract term",
-        notes: "Networked to ICU nurse stations.",
+        sku: "AX-PP147-S",
+        productName: "Printer paper roll (5 rolls/box, width 5.5cm)",
+        brandModel: null,
+        manufacturer: null,
+        qty: 1,
+        unitPrice: 83,
+        warranty: "—",
+        notes: "Accessory item.",
       },
     ],
+    maintenanceSchedules: [
+      {
+        name: "Preventive Maintenance only (per system)",
+        rows: [
+          { year: "Year 1", unitPrice: 165 },
+          { year: "Year 2", unitPrice: 175 },
+          { year: "Year 3", unitPrice: 185 },
+          { year: "Year 4", unitPrice: 195 },
+          { year: "Year 5", unitPrice: 205 },
+        ],
+      },
+      {
+        name: "Preventive Maintenance + Unlimited Breakdown Repair, labour only (per system)",
+        rows: [
+          { year: "Year 1", unitPrice: 198 },
+          { year: "Year 2", unitPrice: 208 },
+          { year: "Year 3", unitPrice: 218 },
+          { year: "Year 4", unitPrice: 228 },
+          { year: "Year 5", unitPrice: 238 },
+        ],
+      },
+    ],
+    repairCharges: [
+      {
+        description: "Not on service contract, during office hours (within 48 hrs)",
+        uom: "per hour",
+        unitPrice: "$100.00",
+      },
+      {
+        description: "On service contract, during office hours (within 24 hrs)",
+        uom: "per visit",
+        unitPrice: "Free-of-charge",
+      },
+    ],
+    spareParts: [],
+    accessoriesNote:
+      "External I/O unit RS+Bluetooth (TM-2657-04-EX) $610 · External I/O unit RS 2-channel (TM-2657-01-EX) $450 · Anti-bacteria arm cuff cover 5pk (AX-134005759-S) $180 · Disposable arm cover 500pcs (AS-134010367) $36 · Dedicated stand (AND.TM-ST520) $650 · Adjustable stool (DF35GSP-1) $190",
     documents: [
-      { name: "LOA-NHG-2025-0142.pdf", size: "1.8 MB" },
-      { name: "Price-Schedule-Annex-A.pdf", size: "420 KB" },
+      { name: "ALPS-LOA-HQ2024025A.pdf", size: "1.4 MB" },
+      { name: "ALPS-Price-Schedule-HQ2024025.pdf", size: "512 KB" },
     ],
-    notes: "Fit-out of 24-bed ICU wing at Tan Tock Seng.",
-  },
-  {
-    id: "AWD-2025-0098",
-    loaNumber: "LOA/SGH/2025/0098",
-    customer: "Singapore General Hospital",
-    category: "Operating Theatre",
-    awardDate: "2025-07-02T00:00:00Z",
-    contractEnd: "2026-09-30T00:00:00Z",
-    warrantyPeriod: "3 years",
-    totalPrice: 742_500,
-    lineItems: [
-      {
-        sku: "EM-OT-TABLE-7",
-        productName: "Operating Theatre Table OT-7 (electro-hydraulic)",
-        qty: 9,
-        unitPrice: 58_000,
-        warranty: "3 years",
-        maintenanceCharges: "$2,400 / table / year",
-        notes: "Schedule of rates contract.",
-      },
-      {
-        sku: "EM-OT-LIGHT-LED",
-        productName: "Surgical LED Light, dual dome",
-        qty: 9,
-        unitPrice: 22_500,
-        warranty: "3 years",
-        maintenanceCharges: "$1,100 / unit / year",
-        notes: null,
-      },
-    ],
-    documents: [{ name: "SGH-Term-Contract-0098.pdf", size: "2.4 MB" }],
-    notes: "Two-year term contract across nine theatres.",
-  },
-  {
-    id: "AWD-2024-0311",
-    loaNumber: "LOA/SCDF/2024/0311",
-    customer: "Singapore Civil Defence Force",
-    category: "Emergency & Rescue",
-    awardDate: "2024-09-12T00:00:00Z",
-    contractEnd: "2026-09-11T00:00:00Z",
-    warrantyPeriod: "2 years",
-    totalPrice: 186_400,
-    lineItems: [
-      {
-        sku: "EM-STR-SCOOP",
-        productName: "Scoop Stretcher, aluminium",
-        qty: 120,
-        unitPrice: 780,
-        warranty: "2 years",
-        maintenanceCharges: "Not applicable",
-        notes: null,
-      },
-      {
-        sku: "EM-IMM-CSET",
-        productName: "Cervical Immobilisation Set",
-        qty: 160,
-        unitPrice: 420,
-        warranty: "2 years",
-        maintenanceCharges: "Not applicable",
-        notes: "Delivered in two tranches.",
-      },
-    ],
-    documents: [{ name: "SCDF-Award-0311.pdf", size: "980 KB" }],
     notes: null,
+    fieldMeta: aiFields(
+      "loaNumber",
+      "itqRef",
+      "awardingAgency",
+      "endCustomer",
+      "contractStart",
+      "contractEnd",
+      "contractDuration",
+      "totalPrice",
+      "lineItems",
+      "maintenanceSchedules",
+      "repairCharges",
+    ),
   },
   {
-    id: "AWD-2023-0205",
-    loaNumber: "LOA/MOH/2023/0205",
-    customer: "Ministry of Health",
+    id: "GPMQ11820-E",
+    loaNumber: "GPMQ11820-E",
+    itqRef: "GPMQ11820",
+    awardingAgency: "ALPS Pte Ltd",
+    endCustomer: "Public Healthcare Institutions (multiple hospitals)",
     category: "Hospital Ward",
-    awardDate: "2023-05-22T00:00:00Z",
-    contractEnd: "2025-05-21T00:00:00Z",
-    warrantyPeriod: "3 years",
-    totalPrice: 968_000,
+    contractStart: "2021-10-21T00:00:00Z",
+    contractEnd: "2026-10-20T00:00:00Z",
+    contractDuration: "3+2 years",
+    warrantyPeriod: "24 months on-site",
+    totalPrice: null,
     lineItems: [
       {
-        sku: "EM-BED-E4",
-        productName: "Electric Hospital Bed E4, 4-section",
-        qty: 220,
-        unitPrice: 3_600,
-        warranty: "3 years",
-        maintenanceCharges: "$180 / bed / year",
-        notes: "Community hospital wards, six sites.",
-      },
-      {
-        sku: "EM-LOCK-BS2",
-        productName: "Bedside Locker with overbed table",
-        qty: 220,
-        unitPrice: 780,
-        warranty: "2 years",
-        maintenanceCharges: "Not applicable",
-        notes: null,
-      },
-    ],
-    documents: [{ name: "MOH-Award-0205.pdf", size: "1.2 MB" }],
-    notes: null,
-  },
-  {
-    id: "AWD-2025-0177",
-    loaNumber: "LOA/HSA/2025/0177",
-    customer: "Health Sciences Authority",
-    category: "Laboratory",
-    awardDate: "2025-12-04T00:00:00Z",
-    contractEnd: "2027-12-03T00:00:00Z",
-    warrantyPeriod: "1 year",
-    totalPrice: 62_400,
-    lineItems: [
-      {
-        sku: "EM-LAB-TMX40",
-        productName: "Benchtop Thermomixer TMX-40",
-        qty: 12,
-        unitPrice: 5_200,
-        warranty: "1 year + preventive maintenance",
-        maintenanceCharges: "$390 / unit / year after year 1",
-        notes: "Installation and operator training included.",
+        sku: "Avalo ACS 10-High",
+        productName: "Medication Trolley — Avalo ACS Medication Cart 10-High",
+        brandModel: "Capsa Healthcare, Avalo ACS (Compact Height)",
+        manufacturer: "Capsa Healthcare, USA",
+        qty: null,
+        unitPrice: 3_990,
+        warranty:
+          "24 months minimum (up to 36 months option) on-site comprehensive warranty from commissioning date; includes PM, calibration, unlimited breakdown repair, parts (excl. consumables), labour, transport",
+        dimensions: "109(H) × 61(D) × 66(W) cm",
+        deliveryTerms: "Delivery 120 days from order · Installation 7 days · Commissioning 7 days",
+        notes:
+          "Standard config: 3\" drawer w/ divider wall, 2-tier cassette x2 (12x 5.5\" bins), 3-tier cassette x1 (21x 5.5\" bins total), 6\" drawer, slide-out writing surface, chart holder, handle, colour bumper Blush Salmon, internal waste receptacle.",
+        tieredPricing: [
+          { label: "Tier 1, Qty 1-10 units", unitPrice: 3_990 },
+          { label: "Tier 2, Qty 11-15 units", unitPrice: 3_890 },
+        ],
       },
     ],
-    documents: [{ name: "HSA-Quotation-Award-0177.pdf", size: "640 KB" }],
-    notes: null,
+    maintenanceSchedules: [],
+    repairCharges: [],
+    spareParts: [
+      {
+        description: "Drawer Slide",
+        partNumber: "12260",
+        unitPrice: 95,
+        uom: "per box",
+        priceHeldFirm: "6 years after warranty",
+      },
+      {
+        description: "Relock Assembly",
+        partNumber: "12787",
+        unitPrice: 1_528,
+        uom: "per box",
+        priceHeldFirm: "6 years after warranty",
+      },
+      {
+        description: "Motor Assembly",
+        partNumber: "12788",
+        unitPrice: 550,
+        uom: "per box",
+        priceHeldFirm: "6 years after warranty",
+      },
+      {
+        description: "Caster - Swivel",
+        partNumber: "9367TP",
+        unitPrice: 200,
+        uom: "per box",
+        priceHeldFirm: "6 years after warranty",
+      },
+      {
+        description: "Caster - Locking",
+        partNumber: "9368TP",
+        unitPrice: 200,
+        uom: "per box",
+        priceHeldFirm: "6 years after warranty",
+      },
+    ],
+    accessoriesNote:
+      "Articulating arm w/ laptop tray $297 · A&E Mount Bracket $78 · Multi-cavity storage module $135 · Tracking castor 5\" $110 · AC Top mat $57 · Patient name tag 500pcs $21 · 3\" Main Drawer $198 · 6\" Main Drawer $279 · 10\" Main Drawer $390 · Two-Tier Cassette Package 5.5\" $339 · Three-Tier Cassette Package 5.5\" $438 · I.V. Pole Complete $207 · Waste Container w/Lid $225",
+    documents: [{ name: "ALPS-Agreement-GPMQ11820-E.pdf", size: "2.1 MB" }],
+    notes:
+      "Contract start reflects the 21 Oct 2021 quotation date — confirm actual commencement date if different.",
+    fieldMeta: {
+      ...aiFields(
+        "loaNumber",
+        "itqRef",
+        "awardingAgency",
+        "endCustomer",
+        "contractEnd",
+        "contractDuration",
+        "lineItems",
+        "spareParts",
+      ),
+      contractStart: { source: "edited", by: "Priya", date: "05 Jan 2026" },
+    },
   },
 ] as AwardedTender[];
 
