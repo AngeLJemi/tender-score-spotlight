@@ -108,7 +108,7 @@ function LibraryPage() {
   const [editing, setEditing] = useState<AwardedTender | null>(null);
 
   const customers = useMemo(
-    () => ["All", ...Array.from(new Set(entries.map((e) => e.customer)))],
+    () => ["All", ...Array.from(new Set(entries.map((e) => e.endCustomer)))],
     [entries],
   );
 
@@ -116,20 +116,23 @@ function LibraryPage() {
     const q = query.trim().toLowerCase();
     return entries.filter((e) => {
       if (category !== "All" && e.category !== category) return false;
-      if (customer !== "All" && e.customer !== customer) return false;
+      if (customer !== "All" && e.endCustomer !== customer) return false;
       if (statusFilter !== "All" && contractStatus(e) !== statusFilter) return false;
       const range = priceRanges.find((r) => r.label === price);
-      if (range && range.label !== "All" && (e.totalPrice < range.min || e.totalPrice > range.max))
-        return false;
+      const value = e.totalPrice ?? e.lineItems.find((l) => l.unitPrice != null)?.unitPrice ?? 0;
+      if (range && range.label !== "All" && (value < range.min || value > range.max)) return false;
       const dr = awardDateRanges.find((r) => r.label === dateRange);
-      if (dr && Number.isFinite(dr.months) && monthsSince(e.awardDate) > dr.months) return false;
+      if (dr && Number.isFinite(dr.months) && monthsSince(e.contractStart) > dr.months)
+        return false;
       if (!q) return true;
       return [
         e.id,
         e.loaNumber,
-        e.customer,
+        e.itqRef ?? "",
+        e.awardingAgency,
+        e.endCustomer,
         e.category,
-        ...e.lineItems.flatMap((l) => [l.sku, l.productName]),
+        ...e.lineItems.flatMap((l) => [l.sku, l.productName, l.brandModel ?? ""]),
       ]
         .join(" ")
         .toLowerCase()
