@@ -42,6 +42,8 @@ export function LibraryCard({
   const Icon = categoryIcon(entry.category);
   const isGrid = variant === "grid";
   const items = entry.lineItems;
+  const firstUnit = items.find((l) => l.unitPrice != null)?.unitPrice ?? null;
+  const hasTotal = entry.totalPrice != null;
 
   return (
     <button
@@ -74,7 +76,9 @@ export function LibraryCard({
             <span className="inline-flex items-center rounded-md bg-library/10 px-2 py-0.5 font-mono text-[11px] tracking-wide text-library">
               {entry.id}
             </span>
-            <span className="block truncate text-sm text-muted-foreground">{entry.customer}</span>
+            <span className="block truncate text-sm text-muted-foreground">
+              {entry.endCustomer}
+            </span>
           </span>
         </div>
         <span
@@ -116,11 +120,12 @@ export function LibraryCard({
         <div className="flex flex-wrap items-stretch gap-2">
           <span className="rounded-xl border border-library/15 bg-card px-3 py-2">
             <span className="block text-[11px] tracking-wide text-muted-foreground uppercase">
-              Contracted price
+              {hasTotal ? "Contract Value (First Order)" : "Unit Price (Tier 1)"}
             </span>
             <span className="mt-0.5 block font-display text-lg leading-none font-semibold text-library">
-              {formatMoney(entry.totalPrice)}
+              {formatMoney(entry.totalPrice ?? firstUnit ?? 0)}
             </span>
+            <span className="mt-0.5 block text-[10px] text-muted-foreground">excl. GST</span>
           </span>
           <span className="rounded-xl border border-library/15 bg-card px-3 py-2">
             <span className="block text-[11px] tracking-wide text-muted-foreground uppercase">
@@ -134,7 +139,8 @@ export function LibraryCard({
 
         <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
           <span className="flex items-center gap-1.5 text-muted-foreground">
-            <CalendarDays className="size-4" /> Awarded {formatDate(entry.awardDate)}
+            <CalendarDays className="size-4" /> {formatDate(entry.contractStart)} –{" "}
+            {formatDate(entry.contractEnd)}
           </span>
           <span className="ml-auto text-sm font-semibold text-library">View Details</span>
         </div>
