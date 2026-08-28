@@ -337,7 +337,7 @@ function MatchedContracts({ tender }: { tender: Tender }) {
               <Link
                 to="/library"
                 search={{ entry: m.entry.id, fromTender: tender.tenderId }}
-                className="shrink-0 text-sm font-semibold text-library hover:underline"
+                className="shrink-0 text-sm font-semibold text-primary hover:underline"
               >
                 View
               </Link>
