@@ -1,20 +1,37 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { ArrowLeft, Database, LayoutGrid, PanelLeft, Plus, Rows3, Search } from "lucide-react";
+import {
+  ArrowLeft,
+  Building2,
+  CalendarDays,
+  CheckCircle2,
+  Clock,
+  Database,
+  Eye,
+  FileText,
+  Layers,
+  LayoutGrid,
+  Package,
+  PanelLeft,
+  Plus,
+  Rows3,
+  Search,
+  ShieldCheck,
+  SlidersHorizontal,
+  Star,
+  Wrench,
+} from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { cn } from "@/lib/utils";
 import {
-  awardDateRanges,
-  awardedTenders as seedAwarded,
-  contractStatus,
-  contractStatuses,
+  formatMoney,
+  getItemPrimaryPrice,
   libraryCategories,
-  monthsSince,
-  priceRanges,
-  type AwardedTender,
+  sampleLibraryData,
+  type TenderLibraryItem,
 } from "@/lib/library";
-import { LibraryCard } from "@/components/library/LibraryCard";
+import { LibraryCard, ContractStatusBadge } from "@/components/library/LibraryCard";
 import { AwardedDetail } from "@/components/library/AwardedDetail";
 import { AddAwardedDialog } from "@/components/library/AddAwardedDialog";
 import {
@@ -24,6 +41,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
 
 type LibrarySearch = { entry?: string; fromTender?: string };
 
@@ -38,26 +62,24 @@ export const Route = createFileRoute("/library")({
   },
   head: () => ({
     meta: [
-      { title: "Tenders Library · Equip Medical" },
+      { title: "Tenders Library · Equip Medical Commercial Intelligence" },
       {
         name: "description",
         content:
-          "Searchable repository of awarded tenders and contracts: line items, SKUs, contracted prices, warranty and maintenance terms.",
+          "Card directory of awarded healthcare tender contracts, pricing tiers, multi-year escalation ladders, and spare parts schedules.",
       },
       { property: "og:title", content: "Tenders Library · Equip Medical" },
       {
         property: "og:description",
         content:
-          "Reference past wins before quoting — awarded contracts, SKUs, contracted prices and warranty terms in one place.",
+          "Interactive contract cards with instant slide-over drawer dossiers, volume tier calculators, and accessory matrices.",
       },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: LibraryPage,
 });
 
-type ViewMode = "list" | "grid";
+type CardLayout = "grid" | "list";
 
 function FilterSelect({
   value,
@@ -74,8 +96,8 @@ function FilterSelect({
     <Select value={value} onValueChange={onChange}>
       <SelectTrigger
         className={cn(
-          "h-9 w-auto min-w-[9rem] rounded-full border-border bg-card text-sm",
-          value !== "All" && "border-library/40 bg-library-band text-library",
+          "h-9 w-auto min-w-[9rem] rounded-full border-border bg-card text-xs font-medium",
+          value !== "All" && "border-primary/40 bg-accent text-accent-foreground font-semibold",
         )}
         aria-label={label}
       >
@@ -94,21 +116,36 @@ function FilterSelect({
 
 function LibraryPage() {
   const search = Route.useSearch();
-  const [entries, setEntries] = useState<AwardedTender[]>(seedAwarded);
+  const [entries, setEntries] = useState<TenderLibraryItem[]>(sampleLibraryData);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("All");
-  const [customer, setCustomer] = useState("All");
-  const [dateRange, setDateRange] = useState("All");
-  const [statusFilter, setStatusFilter] = useState("All");
-  const [price, setPrice] = useState("All");
-  const [view, setView] = useState<ViewMode>("list");
+  const [agency, setAgency] = useState("All");
+  const [duration, setDuration] = useState("All");
+  const [cardLayout, setCardLayout] = useState<CardLayout>("grid");
   const [starred, setStarred] = useState<string[]>([]);
-  const [selectedId, setSelectedId] = useState<string>(search.entry ?? seedAwarded[0]?.id ?? "");
+  const [selectedEntry, setSelectedEntry] = useState<TenderLibraryItem | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState<AwardedTender | null>(null);
+  const [editing, setEditing] = useState<TenderLibraryItem | null>(null);
 
-  const customers = useMemo(
-    () => ["All", ...Array.from(new Set(entries.map((e) => e.endCustomer)))],
+  // Auto-open drawer if entry query param is present
+  useEffect(() => {
+    if (search.entry) {
+      const match = entries.find((e) => e.id === search.entry || e.loaNumber === search.entry);
+      if (match) {
+        setSelectedEntry(match);
+        setDrawerOpen(true);
+      }
+    }
+  }, [search.entry, entries]);
+
+  const agencies = useMemo(
+    () => ["All", ...Array.from(new Set(entries.map((e) => e.awardingAgency)))],
+    [entries],
+  );
+
+  const durations = useMemo(
+    () => ["All", ...Array.from(new Set(entries.map((e) => e.contract?.duration).filter(Boolean) as string[]))],
     [entries],
   );
 
@@ -116,249 +153,268 @@ function LibraryPage() {
     const q = query.trim().toLowerCase();
     return entries.filter((e) => {
       if (category !== "All" && e.category !== category) return false;
-      if (customer !== "All" && e.endCustomer !== customer) return false;
-      if (statusFilter !== "All" && contractStatus(e) !== statusFilter) return false;
-      const range = priceRanges.find((r) => r.label === price);
-      const value = e.totalPrice ?? e.lineItems.find((l) => l.unitPrice != null)?.unitPrice ?? 0;
-      if (range && range.label !== "All" && (value < range.min || value > range.max)) return false;
-      const dr = awardDateRanges.find((r) => r.label === dateRange);
-      if (dr && Number.isFinite(dr.months) && monthsSince(e.contractStart) > dr.months)
-        return false;
+      if (agency !== "All" && e.awardingAgency !== agency) return false;
+      if (duration !== "All" && e.contract?.duration !== duration) return false;
       if (!q) return true;
-      return [
+
+      const lineItemTerms = e.lineItems.flatMap((l) => [
+        l.productName,
+        l.skuPartNumber ?? "",
+        l.brand ?? "",
+        l.model ?? "",
+        l.description,
+      ]);
+      const sparePartTerms = e.commercialPricing.spareParts.flatMap((sp) => [sp.partNumber, sp.description]);
+      const accessoryTerms = e.commercialPricing.optionalAccessories.map((a) => a.description);
+
+      const allSearchable = [
         e.id,
         e.loaNumber,
-        e.itqRef ?? "",
+        e.itqNumber,
         e.awardingAgency,
         e.endCustomer,
         e.category,
-        ...e.lineItems.flatMap((l) => [l.sku, l.productName, l.brandModel ?? ""]),
+        e.status,
+        ...lineItemTerms,
+        ...sparePartTerms,
+        ...accessoryTerms,
       ]
         .join(" ")
-        .toLowerCase()
-        .includes(q);
-    });
-  }, [entries, query, category, customer, statusFilter, price, dateRange]);
+        .toLowerCase();
 
-  const selected = filtered.find((e) => e.id === selectedId) ?? filtered[0];
+      return allSearchable.includes(q);
+    });
+  }, [entries, query, category, agency, duration]);
 
   const toggleStar = (id: string) =>
     setStarred((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
-  const handleSave = (entry: AwardedTender) => {
+  const openDrawer = (entry: TenderLibraryItem) => {
+    setSelectedEntry(entry);
+    setDrawerOpen(true);
+  };
+
+  const handleSave = (entry: TenderLibraryItem) => {
     setEntries((prev) => {
-      const exists = prev.some((e) => e.id === entry.id);
+      const exists = prev.some((e) => e.id === entry.id || e.loaNumber === entry.loaNumber);
       return exists ? prev.map((e) => (e.id === entry.id ? entry : e)) : [entry, ...prev];
     });
-    setSelectedId(entry.id);
+    setSelectedEntry(entry);
     setDialogOpen(false);
     setEditing(null);
   };
 
-  return (
+    return (
     <div className="flex min-h-screen bg-surface">
       <Sidebar />
 
       <main className="flex min-w-0 flex-1 flex-col">
-        <header className="border-b border-library/15 bg-library-band/70 px-5 py-4">
-          <div className="flex items-center gap-4">
-            <PanelLeft className="size-5 shrink-0 text-library/70" />
-            <span className="h-6 w-px bg-library/20" />
-            <Database className="size-5 shrink-0 text-library" />
-            <h1 className="truncate text-xl font-semibold text-library">Tenders Library</h1>
+        {/* Top Header Command Bar */}
+        <header className="border-b border-border bg-card px-6 py-4 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <PanelLeft className="size-5 shrink-0 text-muted-foreground" />
+              <span className="h-6 w-px bg-border" />
+              <div className="flex items-center gap-2.5">
+                <span className="grid size-9 place-items-center rounded-xl bg-primary/10 text-primary">
+                  <Database className="size-5" />
+                </span>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-xl font-bold tracking-tight text-foreground">Tenders Library</h1>
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary">
+                      {entries.length} Contracts
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Awarded contract intelligence cards · Click on any card to open full details in drawer
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
-          <p className="mt-2 inline-flex items-center gap-2 rounded-full bg-library px-3 py-1 text-[10px] font-bold tracking-[0.14em] text-library-foreground uppercase">
-            Internal — awarded contracts
-          </p>
         </header>
 
-        <div className="min-w-0 flex-1 p-5">
+        {/* Controls & Filter Bar */}
+        <div className="min-w-0 flex-1 p-6 space-y-5">
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 md:flex md:justify-between">
-            <div className="group relative min-w-0 md:w-[30rem]">
-              <Search className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-library" />
+            {/* Search Input */}
+            <div className="group relative min-w-0 md:w-[32rem]">
+              <Search className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground transition-colors group-focus-within:text-primary" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search by Tender ID, SKU, product, customer or keyword..."
+                placeholder="Search by LOA, ITQ, product name, brand, model, SKU, or spare part..."
                 aria-label="Search awarded tenders"
-                className="h-12 w-full rounded-full border border-border bg-card pr-4 pl-11 text-sm shadow-sm outline-none transition-shadow placeholder:text-muted-foreground focus:border-library/40 focus:shadow-md focus:ring-4 focus:ring-library/10"
+                className="h-12 w-full rounded-full border border-border bg-card pr-4 pl-11 text-sm shadow-sm outline-none transition-all placeholder:text-muted-foreground focus:border-primary/40 focus:shadow-md focus:ring-4 focus:ring-primary/10"
               />
             </div>
 
-            <div className="flex items-center gap-2">
+            {/* Action Buttons & Layout Toggle */}
+            <div className="flex items-center gap-2.5">
               <button
                 type="button"
                 onClick={() => {
                   setEditing(null);
                   setDialogOpen(true);
                 }}
-                className="inline-flex h-11 shrink-0 items-center gap-2 rounded-full bg-library px-4 text-sm font-semibold text-library-foreground transition-colors hover:bg-library/90"
+                className="inline-flex h-11 shrink-0 items-center gap-2 rounded-full bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 hover:shadow"
               >
                 <Plus className="size-4" />
-                Add Awarded Tender
+                Add Awarded Contract
               </button>
 
               <div
                 role="tablist"
-                aria-label="View mode"
-                className="inline-flex shrink-0 rounded-full border border-border bg-card p-1"
+                aria-label="Card layout"
+                className="inline-flex shrink-0 rounded-full border border-border bg-card p-1 shadow-sm"
               >
                 {[
-                  { key: "list" as ViewMode, icon: Rows3, label: "List view" },
-                  { key: "grid" as ViewMode, icon: LayoutGrid, label: "Grid view" },
+                  { key: "grid" as CardLayout, icon: LayoutGrid, label: "Grid Cards" },
+                  { key: "list" as CardLayout, icon: Rows3, label: "List Cards" },
                 ].map((v) => (
                   <button
                     key={v.key}
                     type="button"
                     role="tab"
-                    aria-selected={view === v.key}
+                    aria-selected={cardLayout === v.key}
                     aria-label={v.label}
-                    onClick={() => setView(v.key)}
+                    onClick={() => setCardLayout(v.key)}
                     className={cn(
-                      "grid size-9 place-items-center rounded-full transition-colors",
-                      view === v.key
-                        ? "bg-library text-library-foreground"
+                      "flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors",
+                      cardLayout === v.key
+                        ? "bg-primary text-primary-foreground shadow-xs"
                         : "text-muted-foreground hover:text-foreground",
                     )}
                   >
-                    <v.icon className="size-4" />
+                    <v.icon className="size-3.5" />
+                    <span>{v.label}</span>
                   </button>
                 ))}
               </div>
             </div>
           </div>
 
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            {["All", ...libraryCategories].map((f) => (
+          {/* Filters Bar */}
+          <div className="flex flex-wrap items-center gap-2.5 pt-1 border-t border-border">
+            <span className="flex items-center gap-1 text-xs font-medium text-muted-foreground mr-1">
+              <SlidersHorizontal className="size-3.5" /> Filter by:
+            </span>
+            <FilterSelect label="Category" value={category} onChange={setCategory} options={libraryCategories} />
+            <FilterSelect label="Agency" value={agency} onChange={setAgency} options={agencies} />
+            <FilterSelect label="Term Duration" value={duration} onChange={setDuration} options={durations} />
+
+            {(category !== "All" || agency !== "All" || duration !== "All" || query) && (
               <button
-                key={f}
                 type="button"
-                aria-pressed={category === f}
-                onClick={() => setCategory(f)}
-                className={cn(
-                  "rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
-                  category === f
-                    ? "border-library/40 bg-library-band text-library"
-                    : "border-border bg-card text-muted-foreground hover:text-foreground",
-                )}
+                onClick={() => {
+                  setCategory("All");
+                  setAgency("All");
+                  setDuration("All");
+                  setQuery("");
+                }}
+                className="ml-auto text-xs font-semibold text-primary underline hover:text-primary/80"
               >
-                {f}
+                Reset Filters
               </button>
-            ))}
-          </div>
-
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <FilterSelect
-              label="Customer"
-              value={customer}
-              onChange={setCustomer}
-              options={customers}
-            />
-            <FilterSelect
-              label="Award date"
-              value={dateRange}
-              onChange={setDateRange}
-              options={awardDateRanges.map((r) => r.label)}
-            />
-            <FilterSelect
-              label="Status"
-              value={statusFilter}
-              onChange={setStatusFilter}
-              options={["All", ...contractStatuses]}
-            />
-            <FilterSelect
-              label="Price"
-              value={price}
-              onChange={setPrice}
-              options={priceRanges.map((r) => r.label)}
-            />
-          </div>
-
-          <p className="mt-5 text-sm text-muted-foreground">
-            Showing {filtered.length} of {entries.length} awarded tenders
-          </p>
-
-          <div className="mt-4 grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1fr)_26rem]">
-            <div className="min-w-0">
-              {entries.length === 0 ? (
-                <div className="rounded-2xl border border-border bg-card p-10 text-center">
-                  <p className="text-sm text-muted-foreground">
-                    No awarded tenders yet — add one manually or import a contract PDF.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setDialogOpen(true)}
-                    className="mt-4 inline-flex items-center gap-2 rounded-full bg-library px-4 py-2.5 text-sm font-semibold text-library-foreground hover:bg-library/90"
-                  >
-                    <Plus className="size-4" />
-                    Add Awarded Tender
-                  </button>
-                </div>
-              ) : filtered.length === 0 ? (
-                <p className="rounded-2xl border border-border bg-card p-10 text-center text-sm text-muted-foreground">
-                  No awarded tenders match these filters.
-                </p>
-              ) : view === "grid" ? (
-                <div className="grid min-w-0 gap-4 sm:grid-cols-2 2xl:grid-cols-3">
-                  {filtered.map((e) => (
-                    <LibraryCard
-                      key={e.id}
-                      variant="grid"
-                      entry={e}
-                      selected={selected?.id === e.id}
-                      onSelect={() => setSelectedId(e.id)}
-                      starred={starred.includes(e.id)}
-                      onToggleStar={() => toggleStar(e.id)}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="min-w-0 overflow-hidden rounded-2xl border border-border bg-card">
-                  {filtered.map((e) => (
-                    <LibraryCard
-                      key={e.id}
-                      entry={e}
-                      selected={selected?.id === e.id}
-                      onSelect={() => setSelectedId(e.id)}
-                      starred={starred.includes(e.id)}
-                      onToggleStar={() => toggleStar(e.id)}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {selected && (
-              <div className="min-w-0 self-start overflow-hidden rounded-2xl border border-library/20 bg-card shadow-sm xl:sticky xl:top-5 xl:max-h-[calc(100vh-2.5rem)] xl:overflow-y-auto">
-                <AwardedDetail
-                  entry={selected}
-                  {...(search.fromTender
-                    ? {
-                        backLink: (
-                          <Link
-                            to="/"
-                            className="mb-3 inline-flex items-center gap-1.5 rounded-full border border-library/25 bg-card px-3 py-1.5 text-xs font-semibold text-library transition-colors hover:bg-library/10"
-                          >
-                            <ArrowLeft className="size-3.5" /> Back to Tender
-                          </Link>
-                        ),
-                      }
-                    : {})}
-                  onEdit={() => {
-                    setEditing(selected);
-                    setDialogOpen(true);
-                  }}
-                  onAdd={() => {
-                    setEditing(null);
-                    setDialogOpen(true);
-                  }}
-                />
-              </div>
             )}
           </div>
+
+          {/* Counter Note */}
+          <p className="text-xs text-muted-foreground">
+            Showing <strong className="text-foreground font-semibold">{filtered.length}</strong> of {entries.length} awarded contracts · Click any card to open the complete details in drawer
+          </p>
+
+          {/* MAIN CARDS DIRECTORY VIEW */}
+          {filtered.length === 0 ? (
+            <div className="rounded-2xl border border-border bg-card p-12 text-center shadow-sm">
+              <p className="text-sm font-semibold text-foreground">No awarded contracts found</p>
+              <p className="mt-1 text-xs text-muted-foreground">Try clearing your search query or filter selections.</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setCategory("All");
+                  setAgency("All");
+                  setDuration("All");
+                  setQuery("");
+                }}
+                className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-semibold text-primary-foreground hover:bg-primary/90"
+              >
+                Reset Filters
+              </button>
+            </div>
+          ) : cardLayout === "grid" ? (
+            <div className="grid min-w-0 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+              {filtered.map((e) => (
+                <LibraryCard
+                  key={e.id}
+                  variant="grid"
+                  entry={e}
+                  selected={selectedEntry?.id === e.id}
+                  onSelect={() => openDrawer(e)}
+                  starred={starred.includes(e.id)}
+                  onToggleStar={() => toggleStar(e.id)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm divide-y divide-border">
+              {filtered.map((e) => (
+                <LibraryCard
+                  key={e.id}
+                  variant="list"
+                  entry={e}
+                  selected={selectedEntry?.id === e.id}
+                  onSelect={() => openDrawer(e)}
+                  starred={starred.includes(e.id)}
+                  onToggleStar={() => toggleStar(e.id)}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </main>
 
+      {/* SLIDE-OVER CONTRACT DOSSIER DRAWER (SHEET) */}
+      <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>
+        <SheetContent
+          side="right"
+          className="w-full sm:max-w-4xl p-0 overflow-y-auto bg-surface border-l border-border shadow-2xl"
+        >
+          <SheetHeader className="sr-only">
+            <SheetTitle>Contract Dossier: {selectedEntry?.loaNumber}</SheetTitle>
+            <SheetDescription>Detailed commercial agreement, tier pricing, spare parts, and terms.</SheetDescription>
+          </SheetHeader>
+
+          {selectedEntry && (
+            <AwardedDetail
+              entry={selectedEntry}
+              {...(search.fromTender
+                ? {
+                    backLink: (
+                      <Link
+                        to="/"
+                        className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-border bg-surface px-3.5 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-accent"
+                      >
+                        <ArrowLeft className="size-3.5" /> Back to Live Tender
+                      </Link>
+                    ),
+                  }
+                : {})}
+              onEdit={() => {
+                setEditing(selectedEntry);
+                setDialogOpen(true);
+              }}
+              onAdd={() => {
+                setEditing(null);
+                setDialogOpen(true);
+              }}
+            />
+          )}
+        </SheetContent>
+      </Sheet>
+
+      {/* Add / Edit Contract Modal */}
       <AddAwardedDialog
         open={dialogOpen}
         onOpenChange={(o) => {
